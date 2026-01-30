@@ -407,15 +407,10 @@
             </div>
             <div class="input-group">
                 <label style="display: block; margin-bottom: 0.5rem;">نوع فایل خروجی:</label>
-                <select id="downloadFormat" onchange="togglePasswordInput()">
+                <select id="downloadFormat">
                     <option value="txt">فایل متنی (TXT)</option>
                     <option value="zip">فایل فشرده (ZIP)</option>
-                    <option value="zip-pass">فایل فشرده با پسورد (ZIP + Password)</option>
                 </select>
-            </div>
-            <div class="input-group" id="passwordGroup" style="display: none;">
-                <label style="display: block; margin-bottom: 0.5rem;">پسورد فایل ZIP:</label>
-                <input type="text" id="zipPassword" placeholder="پسورد را وارد کنید">
             </div>
             <div class="button-group">
                 <button class="btn btn-danger" onclick="goBack()">قبلی</button>
@@ -468,11 +463,6 @@
                 document.getElementById(btnId).classList.add('active');
                 html.setAttribute('data-theme', mode);
             }
-        }
-
-        function togglePasswordInput() {
-            const format = document.getElementById('downloadFormat').value;
-            document.getElementById('passwordGroup').style.display = format === 'zip-pass' ? 'block' : 'none';
         }
 
         function prepareInputs() {
@@ -534,7 +524,6 @@
             const combinedText = allTexts.join('\n');
             const fileName = document.getElementById('fileName').value.trim() || 'configs';
             const format = document.getElementById('downloadFormat').value;
-            const password = document.getElementById('zipPassword').value;
 
             // Convert to Base64 (UTF-8 safe)
             const base64Data = btoa(unescape(encodeURIComponent(combinedText)));
@@ -545,20 +534,7 @@
                     downloadFile(base64Data, `${fileName}.txt`, 'text/plain');
                 } else {
                     const zipOptions = {};
-                    if (format === 'zip-pass') {
-                        if (!password) {
-                            showAlert('لطفا پسورد را وارد کنید', 'danger');
-                            return;
-                        }
-                        // Explicitly using zipSync with password and mtime/level for Windows support
-                        zipOptions[`${fileName}.txt`] = [uint8Data, {
-                            password: password,
-                            level: 6,
-                            mtime: new Date()
-                        }];
-                    } else {
-                        zipOptions[`${fileName}.txt`] = uint8Data;
-                    }
+                    zipOptions[`${fileName}.txt`] = uint8Data;
 
                     const zipped = fflate.zipSync(zipOptions);
                     downloadBlob(new Blob([zipped]), `${fileName}.zip`);
