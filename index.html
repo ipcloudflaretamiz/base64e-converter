@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مبدل کانفیگ به Base64</title>
-    <!-- Importing fflate for ZIP support - using specific version for stability -->
-    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/lib/browser.min.js"></script>
+    <!-- Importing fflate for ZIP support - using full bundle for maximum compatibility -->
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/lib/index.min.js"></script>
     <style>
         :root {
             --primary-blue: #3b82f6;
@@ -522,7 +522,7 @@
             setTimeout(() => container.innerHTML = '', 3000);
         }
 
-        async function processAndDownload() {
+        function processAndDownload() {
             const inputs = document.querySelectorAll('.config-input');
             const allTexts = [];
             inputs.forEach(inp => {
@@ -543,32 +543,26 @@
             try {
                 if (format === 'txt') {
                     downloadFile(base64Data, `${fileName}.txt`, 'text/plain');
-                } else if (format === 'zip') {
-                    // Normal ZIP
-                    fflate.zip({
-                        [`${fileName}.txt`]: uint8Data
-                    }, (err, zipped) => {
-                        if (err) throw err;
-                        downloadBlob(new Blob([zipped]), `${fileName}.zip`);
-                        showSuccess();
-                    });
-                } else if (format === 'zip-pass') {
-                    if (!password) {
-                        showAlert('لطفا پسورد را وارد کنید', 'danger');
-                        return;
-                    }
-                    // Password ZIP using fflate.zip with ZipCrypto
-                    // We must use specific options to ensure password is applied correctly
-                    fflate.zip({
-                        [`${fileName}.txt`]: [uint8Data, { password: password, level: 6 }]
-                    }, (err, zipped) => {
-                        if (err) {
-                            showAlert('خطا در رمزگذاری: ' + err.message, 'danger');
+                } else {
+                    const zipOptions = {};
+                    if (format === 'zip-pass') {
+                        if (!password) {
+                            showAlert('لطفا پسورد را وارد کنید', 'danger');
                             return;
                         }
-                        downloadBlob(new Blob([zipped]), `${fileName}.zip`);
-                        showSuccess();
-                    });
+                        // Explicitly using zipSync with password and mtime/level for Windows support
+                        zipOptions[`${fileName}.txt`] = [uint8Data, {
+                            password: password,
+                            level: 6,
+                            mtime: new Date()
+                        }];
+                    } else {
+                        zipOptions[`${fileName}.txt`] = uint8Data;
+                    }
+
+                    const zipped = fflate.zipSync(zipOptions);
+                    downloadBlob(new Blob([zipped]), `${fileName}.zip`);
+                    showSuccess();
                 }
             } catch (err) {
                 console.error(err);
