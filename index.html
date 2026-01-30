@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="fa">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مبدل کانفیگ به Base64</title>
+    <!-- Importing fflate for ZIP support -->
+    <script src="https://unpkg.com/fflate"></script>
+    <style>
+        :root {
+            --primary-blue: #3b82f6;
+            --primary-purple: #8b5cf6;
+            --primary-yellow: #eab308;
+            --primary-green: #22c55e;
+            --primary-red: #ef4444;
+            --primary-orange: #f97316;
+
+            --primary: var(--primary-blue);
+            --primary-hover: #2563eb;
+
+            --bg-body: #f8fafc;
+            --bg-container: rgba(255, 255, 255, 0.7);
+            --bg-surface: rgba(255, 255, 255, 0.5);
+            --text-main: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --glass-blur: 12px;
+            --input-bg: rgba(255, 255, 255, 0.8);
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-container: rgba(30, 41, 59, 0.7);
+            --bg-surface: rgba(15, 23, 42, 0.5);
+            --text-main: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --input-bg: rgba(15, 23, 42, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            background-image: radial-gradient(circle at 50% 0%, var(--primary), transparent 25%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+            direction: rtl;
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: var(--bg-container);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            border: 1px solid var(--border-color);
+            border-radius: 28px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px var(--shadow-color);
+            position: relative;
+            z-index: 10;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .theme-controls {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--bg-surface);
+            padding: 0.4rem;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-bubble {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .theme-bubble:hover {
+            transform: scale(1.2);
+        }
+
+        .theme-bubble.active {
+            border-color: var(--text-main);
+            transform: scale(1.1);
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: var(--bg-surface);
+            padding: 0.3rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            gap: 0.2rem;
+        }
+
+        .mode-btn {
+            padding: 0.5rem 0.8rem;
+            border-radius: 9px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            color: var(--primary);
+        }
+
+        .step-container {
+            display: none;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        .step-container.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            color: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        .input-group {
+            margin-bottom: 1.2rem;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.1rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 14px;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1rem;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            max-width: 151px;
+        }
+
+        .output-section {
+            margin-top: 2.5rem;
+            background: var(--bg-surface);
+            border: 2px dashed var(--success);
+            border-radius: 20px;
+            padding: 2rem;
+            display: none;
+        }
+
+        .output-section.show {
+            display: block;
+        }
+
+        .alert {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1.2rem 2rem;
+            border-radius: 18px;
+            background: var(--bg-container);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 40px var(--shadow-color);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-danger {
+            border-right: 5px solid var(--error);
+        }
+
+        .alert-success {
+            border-right: 5px solid var(--success);
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <div class="theme-controls" id="themeControls">
+                <div class="theme-bubble active" style="background: var(--primary-blue)"
+                    onclick="setPrimaryColor('blue')" title="آبی"></div>
+                <div class="theme-bubble" style="background: var(--primary-purple)" onclick="setPrimaryColor('purple')"
+                    title="بنفش"></div>
+                <div class="theme-bubble" style="background: var(--primary-yellow)" onclick="setPrimaryColor('yellow')"
+                    title="زرد"></div>
+                <div class="theme-bubble" style="background: var(--primary-green)" onclick="setPrimaryColor('green')"
+                    title="سبز"></div>
+                <div class="theme-bubble" style="background: var(--primary-red)" onclick="setPrimaryColor('red')"
+                    title="قرمز"></div>
+                <div class="theme-bubble" style="background: var(--primary-orange)" onclick="setPrimaryColor('orange')"
+                    title="نارنجی"></div>
+            </div>
+            <div class="mode-toggle">
+                <button class="mode-btn" onclick="setMode('light')" id="modeLight">
+                    لایت
+                </button>
+                <button class="mode-btn" onclick="setMode('dark')" id="modeDark">
+                    دارک
+                </button>
+                <button class="mode-btn active" onclick="setMode('auto')" id="modeAuto">
+                    خودکار
+                </button>
+            </div>
+        </div>
+
+        <h1>
+            <span>مبدل کانفیگ به Base64</span>
+        </h1>
+
+        <div id="alertContainer"></div>
+
+        <div class="step-container active" id="step1">
+            <div class="step-header">
+                <div class="step-number">۱</div>
+                <div class="step-title">ورود متن یا کانفیگ</div>
+            </div>
+            <div class="input-group">
+                <textarea id="inputText" placeholder="کانفیگ‌ها یا متن خود را اینجا وارد کنید (هر کانفیگ در یک خط)..."></textarea>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="goToStep(2)" id="step1Btn">
+                    مرحله بعد
+                </button>
+            </div>
+        </div>
+
+        <div class="step-container" id="step2">
+            <div class="step-header">
+                <div class="step-number">۲</div>
+                <div class="step-title">تنظیمات دانلود</div>
+            </div>
+            <div class="input-group">
+                <label style="display: block; margin-bottom: 0.5rem;">نام فایل (بدون پسوند):</label>
+                <input type="text" id="fileName" placeholder="مثلا: configs" value="configs">
+            </div>
+            <div class="input-group">
+                <label style="display: block; margin-bottom: 0.5rem;">نوع فایل خروجی:</label>
+                <select id="downloadFormat" onchange="togglePasswordInput()">
+                    <option value="txt">فایل متنی (TXT)</option>
+                    <option value="zip">فایل فشرده (ZIP)</option>
+                    <option value="zip-pass">فایل فشرده با پسورد (ZIP + Password)</option>
+                </select>
+            </div>
+            <div class="input-group" id="passwordGroup" style="display: none;">
+                <label style="display: block; margin-bottom: 0.5rem;">پسورد فایل ZIP:</label>
+                <input type="text" id="zipPassword" placeholder="پسورد را وارد کنید">
+            </div>
+            <div class="button-group">
+                <button class="btn btn-danger" onclick="goBack()">قبلی</button>
+                <button class="btn btn-primary" onclick="processAndDownload()">
+                    تبدیل و دانلود
+                </button>
+            </div>
+        </div>
+
+        <div class="output-section" id="outputSection">
+            <div class="step-header">
+                <div class="step-number" style="background: var(--success)">✓</div>
+                <div class="step-title" style="color: var(--success)">عملیات موفقیت‌آمیز بود</div>
+            </div>
+            <p style="text-align: center; margin-bottom: 1.5rem;">فایل شما آماده شد و دانلود شروع شد.</p>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" onclick="location.reload()">
+                    شروع دوباره
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+
+        function setPrimaryColor(colorName) {
+            const colors = {
+                blue: { hex: '#3b82f6', rgb: '59, 130, 246' },
+                purple: { hex: '#8b5cf6', rgb: '139, 92, 246' },
+                yellow: { hex: '#eab308', rgb: '234, 179, 8' },
+                green: { hex: '#22c55e', rgb: '34, 197, 94' },
+                red: { hex: '#ef4444', rgb: '239, 68, 68' },
+                orange: { hex: '#f97316', rgb: '249, 115, 22' }
+            };
+            const selected = colors[colorName] || colors.blue;
+            document.documentElement.style.setProperty('--primary', selected.hex);
+            localStorage.setItem('base64-primary-color', colorName);
+            document.querySelectorAll('.theme-bubble').forEach(b => b.classList.remove('active'));
+            const activeBubble = document.querySelector(`.theme-bubble[onclick*="${colorName}"]`);
+            if (activeBubble) activeBubble.classList.add('active');
+        }
+
+        function setMode(mode) {
+            const html = document.documentElement;
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            if (mode === 'auto') {
+                document.getElementById('modeAuto').classList.add('active');
+                html.setAttribute('data-theme', darkQuery.matches ? 'dark' : 'light');
+            } else {
+                const btnId = mode === 'dark' ? 'modeDark' : 'modeLight';
+                document.getElementById(btnId).classList.add('active');
+                html.setAttribute('data-theme', mode);
+            }
+        }
+
+        function togglePasswordInput() {
+            const format = document.getElementById('downloadFormat').value;
+            document.getElementById('passwordGroup').style.display = format === 'zip-pass' ? 'block' : 'none';
+        }
+
+        function goToStep(step) {
+            if (step === 2 && !document.getElementById('inputText').value.trim()) {
+                showAlert('لطفا ابتدا متن یا کانفیگ را وارد کنید', 'danger');
+                return;
+            }
+            document.getElementById(`step${currentStep}`).classList.remove('active');
+            document.getElementById(`step${currentStep}`).style.display = 'none';
+            document.getElementById(`step${step}`).classList.add('active');
+            document.getElementById(`step${step}`).style.display = 'block';
+            currentStep = step;
+        }
+
+        function goBack() {
+            goToStep(currentStep - 1);
+        }
+
+        function showAlert(message, type = 'danger') {
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 3000);
+        }
+
+        async function processAndDownload() {
+            const text = document.getElementById('inputText').value.trim();
+            const fileName = document.getElementById('fileName').value.trim() || 'configs';
+            const format = document.getElementById('downloadFormat').value;
+            const password = document.getElementById('zipPassword').value;
+
+            if (!text) return;
+
+            // Convert to Base64
+            // Using btoa(unescape(encodeURIComponent(str))) for UTF-8 support
+            const base64Data = btoa(unescape(encodeURIComponent(text)));
+            const uint8Data = new TextEncoder().encode(base64Data);
+
+            try {
+                if (format === 'txt') {
+                    downloadFile(base64Data, `${fileName}.txt`, 'text/plain');
+                } else if (format === 'zip') {
+                    const zipped = fflate.zipSync({
+                        [`${fileName}.txt`]: uint8Data
+                    });
+                    downloadBlob(new Blob([zipped]), `${fileName}.zip`);
+                } else if (format === 'zip-pass') {
+                    if (!password) {
+                        showAlert('لطفا پسورد را وارد کنید', 'danger');
+                        return;
+                    }
+                    // Note: fflate supports ZipCrypto for passwords
+                    const zipped = fflate.zipSync({
+                        [`${fileName}.txt`]: [uint8Data, { password: password }]
+                    });
+                    downloadBlob(new Blob([zipped]), `${fileName}.zip`);
+                }
+
+                document.getElementById('step2').style.display = 'none';
+                document.getElementById('outputSection').classList.add('show');
+                showAlert('فایل با موفقیت ایجاد شد', 'success');
+            } catch (err) {
+                console.error(err);
+                showAlert('خطا در ایجاد فایل: ' + err.message, 'danger');
+            }
+        }
+
+        function downloadFile(content, fileName, contentType) {
+            const a = document.createElement('a');
+            const file = new Blob([content], { type: contentType });
+            a.href = URL.createObjectURL(file);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function downloadBlob(blob, fileName) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // Initialize theme
+        window.onload = () => {
+            const savedColor = localStorage.getItem('base64-primary-color') || 'blue';
+            setPrimaryColor(savedColor);
+            setMode('auto');
+        };
+    </script>
+</body>
+
+</html>
